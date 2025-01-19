@@ -17,7 +17,6 @@ import pandas as pd
 import os
 
 #OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-OPENAI_API_KEY = "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"
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 bllm = POpenAI(api_token=OPENAI_API_KEY)
