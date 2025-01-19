@@ -3,9 +3,6 @@ from app.config import RRHH_HEADERS
 from app.utils import jwt_decode
 import os
 
-# relative_path = './assets/logo.png'
-# full_path = os.path.join(os.getcwd(), relative_path)
-# path = os.path.abspath(full_path)
 url_test_api = "http://rrhh.administracionapi.camsoft.com.do:8086"
 if "sourceUrl" in st.query_params:   
     st.session_state.baseUrl = st.query_params.sourceUrl
@@ -27,7 +24,7 @@ if "embed" in st.query_params:
     
     
 if "is_auth" not in st.session_state:
-    st.session_state.is_auth = False
+    st.session_state.is_auth = True
 
 def load_initial_data():
     if "token" in st.query_params:
@@ -70,11 +67,19 @@ def load_initial_data():
         return
         
 
-load_initial_data()
+#load_initial_data()
+
+# Asignación de variables de ejemplo a `st.session_state`
+st.session_state.is_auth = True
+st.session_state.userId = 101
+st.session_state.userEmail = "john.doe@example.com"
+st.session_state.FullUserName = "John Doe"
+st.session_state.userName = "johndoe"
+st.session_state.userCompany = "TechCorp Inc."
 
 pages = {
-    "Asistente de Recursos Humanos": [
-        st.Page("./app/pages/chat.py", title="Chat experimental"),
+    "Asistente": [
+        st.Page("./app/pages/chat.py", title="Chat"),
         st.Page("./app/pages/roadmap.py", title="Roadmap"),
         #st.Page("./app/pages/chat_config.py", title="Configuración"),
     ]

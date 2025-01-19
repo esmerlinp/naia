@@ -6,6 +6,7 @@ from app.config import RRHH_HEADERS
 from app.data.employee.employee import Employee
 from app.data.reclutamiento.reclutamiento import Reclutamiento
 from app.data.payroll.payroll import Payroll
+from app.data.odoo_employee_api import OdooEmployeeAPI
 from app.functions import functions
 from datetime import datetime
 from app.utils import es_ruta, png_to_base64, validate_params, clear_history
@@ -15,7 +16,8 @@ import numpy as np
 import pandas as pd
 import os
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+#OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_API_KEY = "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"
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 bllm = POpenAI(api_token=OPENAI_API_KEY)
@@ -42,6 +44,7 @@ class LLM():
         self.model = "gpt-4o"
         #self.model = "gpt-3.5-turbo"
         self.employee = Employee()
+        self.odoo_api = OdooEmployeeAPI()
         self.reclutamiento = Reclutamiento()
         self.payroll = Payroll()
 
@@ -72,6 +75,37 @@ class LLM():
             #Obtener Requisiciones
             if function_name == "get_requisiciones":
                 data = self.reclutamiento.get_requisiciones()
+                return self.process_call(question=text, data=data, name="requisiciones", description="datos de las requisiciones de personal de la empresa")
+           
+            if function_name == "consultar_empleados_odoo":
+                filtro = args['filtro']
+                #campos_a_recuperar = args['campos_a_recuperar']
+                #estado = args['estado']
+                #limite = args['limite']
+                data = self.odoo_api.consultar_empleados(
+                    filtro=filtro,
+                    campos_a_recuperar=[],
+                    estado="activo",
+                    limite=1000,
+                    ordenar_por="name",
+                    orden="asc"
+                )
+                #print("DATA", data)
+                return self.process_call(question=text, data=data, name="requisiciones", description="datos de las requisiciones de personal de la empresa")
+            
+            if function_name == "consultar_compras_odoo":
+                
+                filtro = args.get('filtro', None)
+                campos_a_recuperar = args.get('campos_a_recuperar', [])
+                estado = args.get("estado", "todos")
+                fecha_desde= args.get('fecha_desde', None),
+                fecha_hasta= args.get('fecha_hasta', None),
+                limite = args.get("limite", 100)
+                ordenar_por = args.get('ordenar_por', 'name')
+                orden = args.get('orden', 'asc')
+                
+                data = self.odoo_api.consultar_compras(filtro=None)
+                #print("DATA", data)
                 return self.process_call(question=text, data=data, name="requisiciones", description="datos de las requisiciones de personal de la empresa")
             
             if function_name == "get_solicitudes_empleo":
@@ -256,6 +290,7 @@ class LLM():
         
         """
         df = pd.DataFrame(data)
+        print(df)
         self.sdf = SmartDataframe(df, config={"llm": bllm, "open_charts":False}, name=name, description=description)
         df.to_markdown
         response = None
