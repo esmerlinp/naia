@@ -8,7 +8,6 @@ RRHH_HEADERS = {'Content-type': 'application/json',
                'Authorization':  authorization,  
             }
 
-#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
 DISCLAIMER = """El asistente de recursos humanos ha sido diseñado exclusivamente para asistir a empleados de Recursos Humanos y a la gerencia en la gestión de operaciones relacionadas con el empleo, la nómina y el reclutamiento. Aunque el asistente proporciona información y facilita ciertas tareas, no sustituye la revisión o validación de los procesos por parte del equipo de Recursos Humanos ni garantiza la exactitud absoluta de la información proporcionada.
 \nToda acción realizada o consulta resuelta por el asistente debe ser revisada y aprobada conforme a las políticas y procedimientos internos de la empresa. Las decisiones finales, como la aprobación de solicitudes, la gestión de pagos o cualquier asunto contractual, están bajo la autoridad del Departamento de Recursos Humanos.
 \nImportante: El uso del asistente implica la aceptación de los términos y condiciones del servicio, así como el respeto a la confidencialidad y seguridad de la información personal y de la empresa. Para asuntos complejos o críticos, se recomienda contactar directamente con el equipo de Recursos Humanos."""
