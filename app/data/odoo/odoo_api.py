@@ -1,8 +1,7 @@
 import xmlrpc.client
 import ssl
-import json
 
-class OdooEmployeeAPI:
+class OdooAPI:
     def __init__(self, url=None, db=None, username=None, password=None):
         """
         Inicializa la conexión al sistema Odoo.
@@ -13,20 +12,20 @@ class OdooEmployeeAPI:
         :param password: Contraseña del usuario.
         """
         context = ssl._create_unverified_context()
-        info = xmlrpc.client.ServerProxy('https://demo.odoo.com/start', context=context).start()
-        url, db, username, password = info['host'], info['database'], info['user'], info['password']
+        #info = xmlrpc.client.ServerProxy('https://demo-do.digitalgroup.net', context=context).start()
+        #url, db, username, password = info['host'], info['database'], info['user'], info['password']
 
-        self.url = url
-        self.db = db
-        self.username = username
-        self.password = password
+        self.url = "https://demo-do.digitalgroup.net"
+        self.db = "demo-do"
+        self.username = "admin"
+        self.password = "admin"
 
 
         
         # Conexión y autenticación
-        self.common = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/common")
-        self.uid = self.common.authenticate(db, username, password, {})
-        self.models = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/object")
+        self.common = xmlrpc.client.ServerProxy(f"{self.url}/xmlrpc/2/common")
+        self.uid = self.common.authenticate(self.db, self.username, self.password, {})
+        self.models = xmlrpc.client.ServerProxy(f"{self.url}/xmlrpc/2/object")
     
 
 
@@ -180,6 +179,83 @@ class OdooEmployeeAPI:
             print(f"Error al consultar empleados: {e}")
             return []
 
+
+def consultar_contabilidad(self, tipo, filtro=None, estado="todos", fecha_desde=None, fecha_hasta=None, 
+                           campos_a_recuperar=None, moneda=None, limite=100, ordenar_por="date", orden="asc"):
+    """
+    Consulta registros contables del módulo de contabilidad en Odoo.
+
+    :param tipo: Tipo de registro ('factura', 'pago', 'movimiento', 'diario', 'banco').
+    :param filtro: Criterio de búsqueda.
+    :param estado: Estado del registro ('borrador', 'publicado', 'pagado', 'cancelado', 'todos').
+    :param fecha_desde: Fecha inicial (YYYY-MM-DD).
+    :param fecha_hasta: Fecha final (YYYY-MM-DD).
+    :param campos_a_recuperar: Lista de campos a recuperar.
+    :param moneda: Moneda de los registros ('USD', 'EUR', etc.).
+    :param limite: Número máximo de registros a devolver.
+    :param ordenar_por: Campo para ordenar los resultados ('fecha', 'número', etc.).
+    :param orden: Dirección del orden ('asc', 'desc').
+    :return: Lista de registros contables.
+    """
+    # Mapear tipos a modelos y configuraciones específicas
+    model_map = {
+        "factura": {"model": "account.move", "filter": [("move_type", "in", ["out_invoice", "in_invoice"])]},
+        "pago": {"model": "account.payment", "filter": []},
+        "movimiento": {"model": "account.move.line", "filter": []},
+        "diario": {"model": "account.move", "filter": [("state", "=", "posted")]},
+        "banco": {"model": "account.payment", "filter": [("payment_method_id.code", "ilike", "bank")]},
+    }
+
+    if tipo not in model_map:
+        raise ValueError("El parámetro 'tipo' debe ser uno de: 'factura', 'pago', 'movimiento', 'diario', 'banco'.")
+
+    # Obtener modelo y filtros base para el tipo
+    model_info = model_map[tipo]
+    model_name = model_info["model"]
+    domain = model_info["filter"]
+
+    # Agregar filtros personalizados
+    if filtro:
+        domain.append(["name", "ilike", filtro])
+    if estado != "todos":
+        state_field = "state" if tipo != "movimiento" else "reconciled"
+        domain.append([state_field, "=", estado])
+    if fecha_desde:
+        domain.append(["date", ">=", fecha_desde])
+    if fecha_hasta:
+        domain.append(["date", "<=", fecha_hasta])
+    if moneda:
+        domain.append(["currency_id.name", "=", moneda])
+
+    # Campos por defecto si no se especifican
+    default_fields = {
+        "factura": ["name", "partner_id", "amount_total", "state", "date"],
+        "pago": ["name", "partner_id", "amount", "state", "date"],
+        "movimiento": ["name", "account_id", "debit", "credit", "date"],
+        "diario": ["name", "journal_id", "amount_total", "state", "date"],
+        "banco": ["name", "partner_id", "amount", "payment_date", "state"],
+    }
+    fields = campos_a_recuperar or default_fields.get(tipo, ["name", "date"])
+
+    # Llamada al modelo de Odoo
+    try:
+        registros = self.models.execute_kw(
+            self.db, self.uid, self.password,
+            model_name, 'search_read',
+            [domain],
+            {
+                'fields': fields,
+                'limit': limite,
+                'order': f"{ordenar_por} {orden}",
+            }
+        )
+        return registros
+
+    except Exception as e:
+        print(f"Error al consultar {tipo}: {e}")
+        raise
+
+
 # Ejemplo de uso
 if __name__ == "__main__":
     # Configuración
@@ -189,13 +265,48 @@ if __name__ == "__main__":
     password = "mi_contraseña"
     
     # Instancia de la API
-    odoo_api = OdooEmployeeAPI(url, db, username, password)
+    odoo_api = OdooAPI(url, db, username, password)
     
-    # Consulta de empleados
-    empleados = odoo_api.consultar_compras(
-        filtro=None
+    # # Consulta de empleados
+    # empleados = odoo_api.consultar_compras(
+    #     filtro=None
+    # )
+    
+    # # Imprimir resultados
+    # for emp in empleados:
+    #     print(emp)
+    
+    facturas = odoo_api.consultar_contabilidad(
+        tipo="factura",
+        filtro="INV123",
+        estado="publicado",
+        fecha_desde="2024-01-01",
+        fecha_hasta="2024-12-31",
+        campos_a_recuperar=["name", "partner_id", "amount_total", "state", "date"],
+        moneda="USD",
+        limite=10,
+        ordenar_por="date",
+        orden="desc"
     )
+    print(facturas)
+
+
+    movimientos = odoo_api.consultar_contabilidad(
+        tipo="movimiento",
+        fecha_desde="2024-01-01",
+        fecha_hasta="2024-12-31",
+        limite=20
+        )
     
-    # Imprimir resultados
-    for emp in empleados:
-        print(emp)
+    print(movimientos)
+
+
+    pagos = odoo_api.consultar_contabilidad(
+        tipo="pago",
+        filtro=None,
+        estado="pagado",
+        fecha_desde="2024-01-01",
+        fecha_hasta="2024-12-31",
+        limite=5
+    )
+    print(pagos)

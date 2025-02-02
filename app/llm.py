@@ -3,24 +3,21 @@ import json
 import streamlit as st
 import requests as r
 from app.config import RRHH_HEADERS
-from app.data.employee.employee import Employee
-from app.data.reclutamiento.reclutamiento import Reclutamiento
-from app.data.payroll.payroll import Payroll
-from app.data.odoo_employee_api import OdooEmployeeAPI
-from app.functions import functions
+from app.data.easytalent import employee, reclutamiento, payroll
+from app.data.odoo.odoo_api import OdooAPI
+#from app.data.easytalent.functions import functions
+from app.data.odoo.functions import functions
 from datetime import datetime
 from app.utils import es_ruta, png_to_base64, validate_params, clear_history
 from pandasai.llm import OpenAI as POpenAI
 from pandasai import SmartDataframe
 import numpy as np
 import pandas as pd
-import os
 
-#OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-client = OpenAI(api_key=OPENAI_API_KEY)
-bllm = POpenAI(api_token=OPENAI_API_KEY)
-#bllm = POpenAI(api_token=OPENAI_API_KEY, temperature=0.7, seed=42)
+
+client = OpenAI()
+bllm = POpenAI()
 
 
 class LLM():
@@ -38,16 +35,13 @@ class LLM():
         Se configura el rol del asistente virtual y el modelo a utilizar. También se crea una instancia
         de la clase Employee para interactuar con los datos de los empleados.
         """
-        # gpt-3.5-turbo
         self.rol = '''Mi función es proporcionar asistencia y responder preguntas exclusivamente relacionadas con la gestión de recursos humanos. Nunca debes ofrecer información fuera de estos temas ni tratar asuntos que no formen parte de tus responsabilidades principales.'''
         self.model = "gpt-4o"
-        #self.model = "gpt-3.5-turbo"
-        self.employee = Employee()
-        self.odoo_api = OdooEmployeeAPI()
-        self.reclutamiento = Reclutamiento()
-        self.payroll = Payroll()
+        self.employee = employee.Employee()
+        self.odoo_api = OdooAPI()
+        self.reclutamiento = reclutamiento.Reclutamiento()
+        self.payroll = payroll.Payroll()
 
-        # Crear el SmartDataframe con el DataFrame vacío
        
 
     def proccess_message(self, text, historial=[]):
