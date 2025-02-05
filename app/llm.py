@@ -37,9 +37,9 @@ modelos_odoo = {
 
 
 
-class LLM():
+class LargeLanguageModel():
     """
-    Clase LLM para interactuar con un modelo de lenguaje y gestionar información relacionada con modulos.
+    Clase LargeLanguageModel para interactuar con un modelo de lenguaje y gestionar información relacionada con modulos.
     
     Esta clase se utiliza para validar parámetros, procesar respuestas del modelo y manejar interacciones.
     """
@@ -48,7 +48,7 @@ class LLM():
         """
         Inicializa una instancia de la clase LLM..
         """
-        #self.rol = '''Mi función es proporcionar asistencia y responder preguntas exclusivamente relacionadas con la gestión de recursos humanos. Nunca debes ofrecer información fuera de estos temas ni tratar asuntos que no formen parte de tus responsabilidades principales. debo responder en español'''
+        self.rol = '''Mi función es proporcionar asistencia y responder preguntas exclusivamente relacionadas con la gestión de recursos humanos. Nunca debes ofrecer información fuera de estos temas ni tratar asuntos que no formen parte de tus responsabilidades principales. debo responder en español'''
         self.model = "gpt-4o"
         self.employee = employee.Employee()
         self.odoo_api = OdooAPI()

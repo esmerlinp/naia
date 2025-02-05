@@ -1,6 +1,6 @@
 import streamlit as st
 import time 
-from app.llm import LLM
+from app.llm import LargeLanguageModel
 from app.config import DISCLAIMER, INITIAL_MSG
 from app.database import Database
 from app.utils import is_base64, display_base64_image, es_json_valido
@@ -23,7 +23,7 @@ if not st.session_state.is_auth:
     st.markdown(st.session_state.errorMessage, unsafe_allow_html=True)
     
 else:       
-    llm = LLM()
+    llm = LargeLanguageModel()
     db = Database()
 
     # Cargar la última sesión del usuario o crear una nueva si no existe
