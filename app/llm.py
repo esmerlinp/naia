@@ -19,23 +19,36 @@ import pandas as pd
 client = OpenAI()
 bllm = POpenAI()
 
+modelos_odoo = {
+    "consultar_ventas": "ventas",
+    "consultar_compras": "compras",
+    "consultar_contabilidad": "contabilidad",
+    "consultar_gastos": "gastos",
+    "consultar_facturacion": "facturacion",
+    "consultar_contactos": "contactos",
+    "consultar_proyectos": "proyectos",
+    "consultar_tareas": "tareas",
+    "consultar_inventario": "inventario",
+    "consultar_produccion": "produccion",
+    "consultar_empleados": "empleados",
+    "consultar_nomina": "nomina",
+    "consultar_crm": "crm"
+}
+
+
 
 class LLM():
     """
-    Clase LLM para interactuar con un modelo de lenguaje y gestionar información relacionada con empleados.
+    Clase LLM para interactuar con un modelo de lenguaje y gestionar información relacionada con modulos.
     
-    Esta clase se utiliza para validar parámetros, procesar respuestas del modelo y manejar interacciones
-    relacionadas con recursos humanos, como obtener información de empleados y registrar ausencias.
+    Esta clase se utiliza para validar parámetros, procesar respuestas del modelo y manejar interacciones.
     """
 
     def __init__(self):
         """
-        Inicializa una instancia de la clase LLM.
-        
-        Se configura el rol del asistente virtual y el modelo a utilizar. También se crea una instancia
-        de la clase Employee para interactuar con los datos de los empleados.
+        Inicializa una instancia de la clase LLM..
         """
-        self.rol = '''Mi función es proporcionar asistencia y responder preguntas exclusivamente relacionadas con la gestión de recursos humanos. Nunca debes ofrecer información fuera de estos temas ni tratar asuntos que no formen parte de tus responsabilidades principales.'''
+        #self.rol = '''Mi función es proporcionar asistencia y responder preguntas exclusivamente relacionadas con la gestión de recursos humanos. Nunca debes ofrecer información fuera de estos temas ni tratar asuntos que no formen parte de tus responsabilidades principales. debo responder en español'''
         self.model = "gpt-4o"
         self.employee = employee.Employee()
         self.odoo_api = OdooAPI()
@@ -65,161 +78,186 @@ class LLM():
         if function_name is not None:
             key_words = args.get("key_words", []) 
             
-            #Obtener Requisiciones
-            if function_name == "get_requisiciones":
-                data = self.reclutamiento.get_requisiciones()
-                return self.process_call(question=text, data=data, name="requisiciones", description="datos de las requisiciones de personal de la empresa")
-           
-            if function_name == "consultar_empleados_odoo":
-                filtro = args['filtro']
-                #campos_a_recuperar = args['campos_a_recuperar']
-                #estado = args['estado']
-                #limite = args['limite']
-                data = self.odoo_api.consultar_empleados(
-                    filtro=filtro,
-                    campos_a_recuperar=[],
-                    estado="activo",
-                    limite=1000,
-                    ordenar_por="name",
-                    orden="asc"
-                )
-                #print("DATA", data)
-                return self.process_call(question=text, data=data, name="requisiciones", description="datos de las requisiciones de personal de la empresa")
-            
-            if function_name == "consultar_compras_odoo":
-                
-                filtro = args.get('filtro', None)
-                campos_a_recuperar = args.get('campos_a_recuperar', [])
-                estado = args.get("estado", "todos")
-                fecha_desde= args.get('fecha_desde', None),
-                fecha_hasta= args.get('fecha_hasta', None),
-                limite = args.get("limite", 100)
+            modulo = modelos_odoo.get(function_name)
+            if modulo:
+                #filtro = args.get("filtro")
+                campos_a_recuperar = args.get('campos_a_recuperar')
+                estado = args.get('estado', 'todos')
+                fecha_desde= args.get('fecha_desde'),
+                fecha_hasta= args.get('fecha_hasta'),
+                limite = args.get('limite', 100)
                 ordenar_por = args.get('ordenar_por', 'name')
                 orden = args.get('orden', 'asc')
+
+                data = self.odoo_api.consultar_odoo(modulo, 
+                    #filtro=filtro, 
+                    #campos_a_recuperar=campos_a_recuperar, 
+                    #estado=estado, 
+                    #fecha_desde=fecha_desde, 
+                    #fecha_hasta=fecha_hasta, 
+                    #limite=limite, 
+                    #ordenar_por=ordenar_por, 
+                    #orden=orden
+                    )
                 
-                data = self.odoo_api.consultar_compras(filtro=None)
-                #print("DATA", data)
-                return self.process_call(question=text, data=data, name="requisiciones", description="datos de las requisiciones de personal de la empresa")
+                return self.process_call(question=text, data=data, name=modulo, )
+
+            else:
+                #Obtener Requisiciones
+                if function_name == "get_requisiciones":
+                    data = self.reclutamiento.get_requisiciones()
+                    return self.process_call(question=text, data=data, name="requisiciones", description="datos de las requisiciones de personal de la empresa")
             
-            if function_name == "get_solicitudes_empleo":
-                data = self.reclutamiento.get_solicitudes()
-                return self.process_call(question=text, data=data, name="Solicitudes de empleo", description="Lista de solicitudes de empleo recibidas")
-            
-            if function_name == "get_employee_image":
+                if function_name == "consultar_empleados_odoo":
+                    filtro = args['filtro']
+                    #campos_a_recuperar = args['campos_a_recuperar']
+                    #estado = args['estado']
+                    #limite = args['limite']
+                    data = self.odoo_api.consultar_empleados(
+                        filtro=filtro,
+                        campos_a_recuperar=[],
+                        estado="activo",
+                        limite=1000,
+                        ordenar_por="name",
+                        orden="asc"
+                    )
+                    #print("DATA", data)
+                    return self.process_call(question=text, data=data, name="requisiciones", description="datos de las requisiciones de personal de la empresa")
                 
-                employee_ids = []
-                if "employee_ids" in args:
-                    employee_ids = args['employee_ids']
-                    base64_image = self.employee.get_image(employee_ids[0])
-                    if base64_image:
-                        return base64_image
-                    else:
-                        return "El empleado no tiene una imagen de perfil asignada."
+                if function_name == "consultar_compras_odoo":
+                    
+                    filtro = args.get('filtro', None)
+                    campos_a_recuperar = args.get('campos_a_recuperar', [])
+                    estado = args.get("estado", "todos")
+                    fecha_desde= args.get('fecha_desde', None),
+                    fecha_hasta= args.get('fecha_hasta', None),
+                    limite = args.get("limite", 100)
+                    ordenar_por = args.get('ordenar_por', 'name')
+                    orden = args.get('orden', 'asc')
+                    
+                    data = self.odoo_api.consultar_compras(filtro=None)
+                    #print("DATA", data)
+                    return self.process_call(question=text, data=data, name="requisiciones", description="datos de las requisiciones de personal de la empresa")
                 
-                employee_names = []   
-                if "employee_names" in args:
-                    employee_names = args['employee_names']
-                    data = self.employee.get_employees_by_names(names=employee_names) 
-                    if data:
-                        base64_image = self.employee.get_image(data[0]['idEmpleado'])
+                if function_name == "get_solicitudes_empleo":
+                    data = self.reclutamiento.get_solicitudes()
+                    return self.process_call(question=text, data=data, name="Solicitudes de empleo", description="Lista de solicitudes de empleo recibidas")
+                
+                if function_name == "get_employee_image":
+                    
+                    employee_ids = []
+                    if "employee_ids" in args:
+                        employee_ids = args['employee_ids']
+                        base64_image = self.employee.get_image(employee_ids[0])
                         if base64_image:
                             return base64_image
                         else:
                             return "El empleado no tiene una imagen de perfil asignada."
-                    else:
-                        return "El empleado especificado no se encuentra en nuestros registros."
-              
-            #Candidatos del banco de candidatos    
-            if function_name == "get_candidatos":
-                data = self.reclutamiento.get_elegibles()
-                return self.process_call(question=text, data=data, name="candidatos", description="candidatos elegibles para una posiscion dentro de la empresa")
-
-            #consultar empleados por id, nombres o identificacion
-            if function_name == "get_employees":
-                print('get_employees')
-
-                employee_ids = []
-                if "employee_ids" in args:
-                    employee_ids = args['employee_ids'] 
                     
-                identificaciones = []
-                if "identificaciones" in args:
-                    identificaciones = args['identificaciones'] 
+                    employee_names = []   
+                    if "employee_names" in args:
+                        employee_names = args['employee_names']
+                        data = self.employee.get_employees_by_names(names=employee_names) 
+                        if data:
+                            base64_image = self.employee.get_image(data[0]['idEmpleado'])
+                            if base64_image:
+                                return base64_image
+                            else:
+                                return "El empleado no tiene una imagen de perfil asignada."
+                        else:
+                            return "El empleado especificado no se encuentra en nuestros registros."
+                
+                #Candidatos del banco de candidatos    
+                if function_name == "get_candidatos":
+                    data = self.reclutamiento.get_elegibles()
+                    return self.process_call(question=text, data=data, name="candidatos", description="candidatos elegibles para una posiscion dentro de la empresa")
+
+                #consultar empleados por id, nombres o identificacion
+                if function_name == "get_employees":
+                    print('get_employees')
+
+                    employee_ids = []
+                    if "employee_ids" in args:
+                        employee_ids = args['employee_ids'] 
+                        
+                    identificaciones = []
+                    if "identificaciones" in args:
+                        identificaciones = args['identificaciones'] 
+                        
+                    employee_names = []   
+                    if "employee_names" in args:
+                        employee_names = args['employee_names']     
+
+
+                    data = self.employee.get_employees(employee_ids=employee_ids, identificaciones=identificaciones, names=employee_names, key_words=key_words)
+                    return self.process_call(question=text, data=data, name="empleados", description="datos de algunos empleados de la empresa", key_words=key_words)
+
+                
+                #Consultar periodos de nomina
+                if function_name == "get_nominas":
                     
-                employee_names = []   
-                if "employee_names" in args:
-                    employee_names = args['employee_names']     
+                    
+                    # Fecha inicial del año actual
+                    fecha_inicial_ano = datetime(datetime.now().year, 1, 1).strftime('%Y-%m-%dT%H:%M:%S')
 
+                    if 'from_date' in args:
+                        fecha_inicial_ano = args['from_date']
 
-                data = self.employee.get_employees(employee_ids=employee_ids, identificaciones=identificaciones, names=employee_names, key_words=key_words)
-                return self.process_call(question=text, data=data, name="empleados", description="datos de algunos empleados de la empresa", key_words=key_words)
+                    # Fecha actual
+                    fecha_actual = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+                    if 'to_date' in args:
+                        fecha_actual = args['to_date']
 
+                    data = self.payroll.get_nomina(periodoInicial=fecha_inicial_ano, periodoFinal=fecha_actual)
+                    return self.process_call(question=text, data=data, name="nominas", description="datos de algunos periodos de nomina", key_words=key_words)
+                    
             
-            #Consultar periodos de nomina
-            if function_name == "get_nominas":
-                
-                
-                # Fecha inicial del año actual
-                fecha_inicial_ano = datetime(datetime.now().year, 1, 1).strftime('%Y-%m-%dT%H:%M:%S')
+                        #Registrar una ausencia
+                        
+                #Registrar una ausencia
+                if function_name == "set_ausencia":
+                    
+                    # Validar parámetros requeridos
+                    is_valid, error_message = validate_params(args, ["employee_id", "from_date", "to_date"])
+                    if not is_valid:
+                        return error_message
+                    
+                    employeeID = args['employee_id']
+                    comment = args.get("comment", "creado via Asistant")
+                    
 
-                if 'from_date' in args:
-                    fecha_inicial_ano = args['from_date']
+                    key_words = args.get("key_words", [])
 
-                # Fecha actual
-                fecha_actual = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
-                if 'to_date' in args:
-                    fecha_actual = args['to_date']
+                    # Mapa de palabras clave a códigos de razón
+                    reason_codes = {
+                        "vacaciones": 1,
+                        "licencia": 2,
+                        "permiso_dias": 3,
+                        "permiso_horas": 4,
+                        "excusa": 5
+                    }
 
-                data = self.payroll.get_nomina(periodoInicial=fecha_inicial_ano, periodoFinal=fecha_actual)
-                return self.process_call(question=text, data=data, name="nominas", description="datos de algunos periodos de nomina", key_words=key_words)
-                
-        
-                    #Registrar una ausencia
-                     
-            #Registrar una ausencia
-            if function_name == "set_ausencia":
-                
-                # Validar parámetros requeridos
-                is_valid, error_message = validate_params(args, ["employee_id", "from_date", "to_date"])
-                if not is_valid:
-                    return error_message
-                
-                employeeID = args['employee_id']
-                comment = args.get("comment", "creado via Asistant")
-                
-
-                key_words = args.get("key_words", [])
-
-                # Mapa de palabras clave a códigos de razón
-                reason_codes = {
-                    "vacaciones": 1,
-                    "licencia": 2,
-                    "permiso_dias": 3,
-                    "permiso_horas": 4,
-                    "excusa": 5
-                }
-
-                # Buscar el código correspondiente al primer valor coincidente
-                reason_code = next((reason_codes[k] for k in key_words if k in reason_codes), 0)
+                    # Buscar el código correspondiente al primer valor coincidente
+                    reason_code = next((reason_codes[k] for k in key_words if k in reason_codes), 0)
 
 
-                
-                body = [{
-                    "Id_AccionWeb": 12,
-                    "Id_Registro_Relacionado": employeeID,
-                    "Fecha_Inicio": args['from_date'],
-                    "Fecha_Fin": args['to_date'],
-                    "Comentario": comment,
-                    "Tipo_Ausencia": reason_code
-                }]
-                response = r.post(url=f"{st.session_state.baseUrl}/empleados/TransaccionAccionPersonalEmpleado", headers=RRHH_HEADERS, data=json.dumps(body))
-                
-                if response.status_code == 200:
-                    return "La ausencia ha sido registrada."
-                else:
-                    return f"Error al registrar la ausencia: {response.status_code} {response.text}", None
-        
-            return self.get_response(question=text, historial=filtered_messages)
+                    
+                    body = [{
+                        "Id_AccionWeb": 12,
+                        "Id_Registro_Relacionado": employeeID,
+                        "Fecha_Inicio": args['from_date'],
+                        "Fecha_Fin": args['to_date'],
+                        "Comentario": comment,
+                        "Tipo_Ausencia": reason_code
+                    }]
+                    response = r.post(url=f"{st.session_state.baseUrl}/empleados/TransaccionAccionPersonalEmpleado", headers=RRHH_HEADERS, data=json.dumps(body))
+                    
+                    if response.status_code == 200:
+                        return "La ausencia ha sido registrada."
+                    else:
+                        return f"Error al registrar la ausencia: {response.status_code} {response.text}", None
+            
+                return self.get_response(question=text, historial=filtered_messages)
         else:
             return self.get_response(question=text, historial=filtered_messages)
     
