@@ -6,7 +6,11 @@ from app.database import Database
 from app.utils import is_base64, display_base64_image, es_json_valido
 import os
 import pandas as pd
+import base64
 from streamlit_extras.tags import tagger_component
+import openai   
+
+
 
 st.set_page_config(
     page_title="Assistant",
@@ -47,8 +51,8 @@ else:
             if len(st.session_state.messages) <= 0:
                 db.delete_sesion(st.session_state.CURRENT_SESION)
             else:    
-                sesion_title = llm.get_response("genera un titulo relacionado al historial de esta conversacion, solo muestrame el titulo generado", st.session_state.messages)
-                #sesion_title = st.session_state.messages[0]
+                #sesion_title = llm.get_response("genera un titulo relacionado al historial de esta conversacion, solo muestrame el titulo generado", st.session_state.messages)
+                sesion_title = st.session_state.messages[0]
                 db.update_sesion_description(st.session_state.CURRENT_SESION, sesion_title)
                 
             db.create_sesion(userId=st.session_state.userId, userEmail=st.session_state.userEmail)
@@ -136,7 +140,7 @@ else:
         st.session_state.messages = msgs
         
     #Carga y muestra todos los mensajes 
-    for message in st.session_state.messages:
+    for i, message in enumerate(st.session_state.messages):
         role = message['role']
         #image_path =  f"{path}" if role == 'assistant' else "https://www.allprodad.com/wp-content/uploads/2021/03/05-12-21-happy-people.jpg"
         with st.chat_message(role):
@@ -153,9 +157,37 @@ else:
                         st.json(content)
                         #print(content)    
                 else:    
-                    st.markdown(content)
+                    st.caption(content)
             else: 
-                st.markdown(content)       
+                st.markdown(content)
+            
+            if i == (len(st.session_state.messages) -1) and role == 'user':
+
+                choices = llm.proccess_message(content, st.session_state.messages)
+                if isinstance(choices, openai.types.chat.chat_completion.Choice):
+                   
+                    if choices.message.audio:
+                        transcript = choices.message.audio.transcript
+                        message = transcript
+                        
+                        st.caption(transcript)
+                        db.insert_conversation(st.session_state.CURRENT_SESION, 'assistant', transcript)
+                        st.session_state.messages.append({"role": "assistant", "content": transcript})
+                    else:
+                        message = choices.message.content
+                        st.caption(message)
+                        db.insert_conversation(st.session_state.CURRENT_SESION, 'assistant', message)
+                        st.session_state.messages.append({"role": "assistant", "content": message})
+                        
+                elif isinstance(choices, str):
+                    message = choices
+                    st.caption(message)
+                    db.insert_conversation(st.session_state.CURRENT_SESION, 'assistant', message)
+                    st.session_state.messages.append({"role": "assistant", "content": message})
+                
+
+
+                
             
             
     #Muestra mensaje inicial del asistente 
@@ -174,8 +206,10 @@ else:
     # INTERACION CON EL USUARIO
 ##################################################################################
     # Entrada de texto del usuario
+       
     prompt = st.chat_input(f"{st.session_state.FullUserName.split()[0]}, escribe tu pregunta o solicitud aquí...", max_chars=12000)
     if prompt:
+        init_t = time.time()
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
@@ -183,38 +217,76 @@ else:
         
         with st.chat_message("assistant"):
             placeholder = st.empty()
-            response = None
+            timeholder = st.empty()
+            audio_placeholder = st.empty()
+            message = None
+            choices: openai.types.chat.chat_completion.Choice = None
+            
             with placeholder:
                 with st.spinner("Thinking ..."):
                             
-                    response = llm.proccess_message(prompt, st.session_state.messages)
+                    choices = llm.proccess_message(prompt, st.session_state.messages)
                     
-                if is_base64(response):
-                    image = display_base64_image(response)                
-                    placeholder.image(image, use_column_width=True)
-
-                elif isinstance(response, pd.DataFrame):
-                    placeholder.dataframe(response)
-                    response = response.to_json()
-
-                elif isinstance(response, str):
-                    # Simular escritura fluida
-                    display_text = ""
-                    for char in response:
-                        display_text += char
-                        placeholder.markdown(display_text)
-                        time.sleep(0.01)
-                else:
-                    placeholder.error("Error inesperado en el tipo de respuesta.")
-                    
-                
-                st.session_state.messages.append({"role": "assistant", "content": response})
-                db.insert_conversation(st.session_state.CURRENT_SESION, 'assistant', response)
-                
+                if isinstance(choices, openai.types.chat.chat_completion.Choice):
+                   
+                    if choices.message.audio:
+                        transcript = choices.message.audio.transcript
+                        message = transcript
+                        placeholder.caption(transcript)
                         
-                
+                        total = time.time() - init_t
+                        timeholder.caption(f"{int(total)}s")
+                        
+                        wav_bytes = base64.b64decode(choices.message.audio.data)
+                        audio_placeholder.audio(data=wav_bytes, autoplay=False)
+                    else:
+                        message = choices.message.content
+                        display_text = ""
+                        for char in message:
+                            display_text += char
+                            placeholder.caption(display_text)
+                            time.sleep(0.01)
+                        total = time.time() - init_t
+                        timeholder.caption(f"{int(total)}s")
 
-    
+                else: 
+                    message = choices
+                    if is_base64(message):
+                        image = display_base64_image(message)                
+                        placeholder.image(image, use_column_width=True)
+                        total = time.time() - init_t
+                        timeholder.caption(f"{int(total)}s")
+
+
+
+                    elif isinstance(message, pd.DataFrame):
+                        placeholder.dataframe(message)
+                        message = message.to_json()
+                        total = time.time() - init_t
+                        timeholder.caption(f"{int(total)}s")
+
+                    elif isinstance(message, str):
+                        # Simular escritura fluida
+                        #audio_placeholder = st.empty()
+                        display_text = ""
+                        for char in message:
+                            display_text += char
+                            placeholder.caption(display_text)
+                            time.sleep(0.01)
+                        total = time.time() - init_t
+                        timeholder.caption(f"{int(total)}s")
+
+                        
+
+                    else:
+                        placeholder.error("Error inesperado en el tipo de respuesta.")
+                    
+                
+                
+                st.session_state.messages.append({"role": "assistant", "content": message})
+                db.insert_conversation(st.session_state.CURRENT_SESION, 'assistant', message)
+                
+                
 
     #esto es un hack para applicar estilo a los botones del sidebar
     st.sidebar.markdown(

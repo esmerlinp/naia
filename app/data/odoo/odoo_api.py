@@ -12,6 +12,7 @@ class OdooAPI:
         :param password: Contraseña del usuario.
         """
         context = ssl._create_unverified_context()
+
         #info = xmlrpc.client.ServerProxy('https://demo-do.digitalgroup.net', context=context).start()
         #url, db, username, password = info['host'], info['database'], info['user'], info['password']
 
@@ -23,9 +24,9 @@ class OdooAPI:
 
         
         # Conexión y autenticación
-        self.common = xmlrpc.client.ServerProxy(f"{self.url}/xmlrpc/2/common")
+        self.common = xmlrpc.client.ServerProxy(f"{self.url}/xmlrpc/2/common", context=context)
         self.uid = self.common.authenticate(self.db, self.username, self.password, {})
-        self.models = xmlrpc.client.ServerProxy(f"{self.url}/xmlrpc/2/object")
+        self.models = xmlrpc.client.ServerProxy(f"{self.url}/xmlrpc/2/object", context=context)
 
 
     def consultar_modulos(self) -> list:
@@ -87,19 +88,65 @@ class OdooAPI:
         # Definir los campos predeterminados por módulo
 
         campos_por_defecto = {
-            "ventas": ["name", "partner_id", "amount_total", "state", "date_order"],
-            "compras": ["name", "partner_id", "amount_total", "state", "date_order"],
-            "contabilidad": ["name", "partner_id", "amount_total", "state", "invoice_date"],
-            "gastos": ["name", "employee_id", "total_amount", "state", "date"],
-            "facturacion": ["name", "partner_id", "amount_total", "state", "invoice_date"],
-            "contactos": ["name", "email", "phone", "company_id", "customer_rank"],
+            "ventas": ['id', 'name', 'partner_id', 'state', 'client_order_ref', 'date_order', 'validity_date', 'amount_untaxed', 'amount_tax', 'amount_total', 'currency_id', 'user_id', 'team_id', 'invoice_status', 'order_line', 'payment_term_id', 'pricelist_id', 'note'],
+            "compras": ['id', 'name', 'partner_id', 'partner_ref', 'state', 'date_order', 'date_approve', 'currency_id', 'order_line', 'amount_untaxed', 'amount_tax', 'amount_total', 'invoice_status', 'invoice_count', 'payment_term_id', 'notes', 'user_id'],
+            "contabilidad": ['id', 'name', 'ref', 'date', 'state', 'move_type', 'journal_id', 'partner_id', 'currency_id', 'amount_untaxed', 'amount_tax', 'amount_total', 'amount_residual', 'invoice_date', 'invoice_date_due', 'payment_state', 'invoice_user_id', 'invoice_origin', 'invoice_payment_term_id', 'payment_reference', 'narration'],
+            "gastos": ['id', 'name', 'date', 'employee_id', 'product_id', 'product_description', 'quantity', 'description', 'state', 'total_amount', 'currency_id', 'price_unit', 'tax_amount', 'payment_mode', 'account_id', 'approved_by', 'approved_on'],
+            "facturacion": ['id', 'name', 'ref', 'date', 'state', 'move_type', 'journal_id', 'company_id', 'partner_id', 'commercial_partner_id', 'invoice_date', 'invoice_date_due', 'payment_reference', 'currency_id', 'amount_untaxed', 'amount_tax', 'amount_total', 'amount_residual', 'tax_totals', 'payment_state', 'invoice_line_ids', 'invoice_origin', 'invoice_user_id', 'user_id', 'display_name', 'create_uid', 'create_date', 'write_uid', 'write_date'],
+            "contactos": ['id', 'name', 'complete_name', 'company_name', 'is_company',  'email', 'phone', 'mobile', 'website', 'street', 'street2', 'city', 'state_id', 'zip', 'country_id', 'vat', 'company_registry', 'category_id', 'user_id',  'commercial_partner_id', 'customer_rank', 'supplier_rank', 'credit', 'debit', 'credit_limit', 'total_invoiced', 'property_account_payable_id', 'property_account_receivable_id', 'sale_order_count', 'invoice_ids', 'purchase_order_count', 'contact_address', 'display_name', 'create_uid', 'create_date', 'write_uid', 'write_date'],
             "proyectos": ["name", "user_id", "company_id", "date_start", "date"],
-            "tareas": ["name", "project_id", "user_id", "stage_id", "date_deadline"],
-            "inventario": ["name", "partner_id", "scheduled_date", "state", "move_type"],
+            "tareas": ['id', 'name', 'description', 'priority', 'sequence',  'state', 'stage_id', 'tag_ids', 'create_date', 'write_date',  'date_deadline', 'date_assign', 'date_end', 'date_last_stage_update', 'project_id', 'partner_id', 'company_id', 'user_ids', 
+                        'allocated_hours', 'effective_hours', 'remaining_hours', 'total_hours_spent',  
+                        'progress', 'subtask_count', 'closed_subtask_count', 'parent_id', 'child_ids',  
+                        'allow_task_dependencies', 'depend_on_ids', 'dependent_ids', 'dependent_tasks_count',  
+                        'allow_timesheets', 'timesheet_ids', 'timesheet_product_id', 'analytic_account_id',  
+                        'sale_order_id', 'sale_line_id', 'task_to_invoice', 'invoice_status', 'invoice_count',  
+                        'quotation_count', 'currency_id', 'display_create_invoice_primary',  
+                        'fsm_done', 'worksheet_count', 'worksheet_template_id', 'worksheet_signed_by',  
+                        'create_uid', 'write_uid', 'display_name'
+                    ],
+            "inventario": [
+                        'id', 'name', 'origin', 'note', 'state', 'priority',  
+                        'scheduled_date', 'date_deadline', 'date_done', 'delay_alert_date',  
+                        'location_id', 'location_dest_id', 'picking_type_id', 'picking_type_code',  
+                        'partner_id', 'company_id', 'user_id', 'move_ids', 'move_line_ids',  
+                        'product_id', 'lot_id', 'has_tracking', 'has_scrap_move', 'has_packages',  
+                        'picking_properties', 'show_operations', 'show_reserved',  
+                        'package_ids', 'weight', 'weight_uom_name', 'shipping_weight',  
+                        'carrier_id', 'carrier_tracking_ref', 'carrier_tracking_url', 'delivery_type',  
+                        'purchase_id', 'sale_id', 'is_return_picking', 'return_id', 'return_count',  
+                        'quality_check_todo', 'quality_check_fail', 'quality_alert_count',  
+                        'is_repairable', 'repair_ids', 'nbr_repairs',  
+                        'create_uid', 'create_date', 'write_uid', 'write_date', 'display_name'
+                    ],
             "produccion": ["name", "product_id", "product_qty", "state", "date_planned_start"],
-            "empleados": ["name", "job_title",  "department_id", "company_id", "hourly_cost"],
-            "nomina": ["name", "employee_id", "state", "date_from", "date_to", "net_wage"],
-            "crm": ["name", "partner_id", "stage_id", "expected_revenue", "date_open"]
+            "empleados": [
+                        'id', 'name', 'active', 'color', 'company_id', 'department_id', 'job_id', 'job_title',
+                        'address_id', 'work_phone', 'mobile_phone', 'work_email', 'user_id', 'parent_id', 'coach_id',
+                        'hr_presence_state', 'last_activity', 'last_activity_time', 'newly_hired', 'leave_manager_id',
+                        'remaining_leaves', 'current_leave_state', 'leave_date_from', 'leave_date_to', 'is_absent',
+                        'lang', 'gender', 'marital', 'spouse_complete_name', 'spouse_birthdate', 'children',
+                        'place_of_birth', 'country_of_birth', 'birthday', 'ssnid', 'sinid', 'identification_id',
+                        'passport_id', 'bank_account_id', 'permit_no', 'visa_no', 'visa_expire',
+                        'work_permit_expiration_date', 'has_work_permit', 'study_field', 'study_school',
+                        'emergency_contact', 'emergency_phone', 'km_home_work', 'employee_type', 'category_ids',
+                        'notes', 'barcode', 'departure_reason_id', 'departure_description', 'departure_date',
+                        'id_card', 'driving_license', 'private_car_plate', 'currency_id', 'next_appraisal_date',
+                        'last_appraisal_date', 'related_partner_id', 'appraisal_count', 'attendance_manager_id',
+                        'attendance_state', 'hours_last_month', 'hours_today', 'total_overtime', 'vehicle',
+                        'contract_ids', 'contract_id', 'contracts_count', 'contract_warning', 'first_contract_date',
+                        'employee_cars_count', 'license_plate', 'mobility_card', 'hourly_cost', 'equipment_ids',
+                        'equipment_count', 'resume_line_ids', 'employee_skill_ids', 'skill_ids',
+                        'has_work_entries', 'sign_request_ids', 'sign_request_count', 'default_planning_role_id',
+                        'planning_role_ids', 'document_count', 'expense_manager_id', 'has_timesheet',
+                        'payslip_count', 'registration_number', 'salary_attachment_count', 'mobile_invoice',
+                        'sim_card', 'internet_invoice', 'is_non_resident', 'timesheet_manager_id',
+                        'last_validated_timesheet_date', 'subscribed_courses', 'has_subscribed_courses',
+                        'courses_completion_text', 'billable_time_target', 'display_name', 'create_uid',
+                        'create_date', 'write_uid', 'write_date'
+                    ],
+            "nomina": [],
+            "crm": []
         }
 
 
@@ -375,7 +422,7 @@ class OdooAPI:
                 model_name, 'search_read',
                 [domain],
                 {
-                    'fields': fields,
+                    'fields': [],
                     'limit': limite,
                     'order': f"{ordenar_por} {orden}",
                 }
@@ -483,9 +530,9 @@ if __name__ == "__main__":
 
 
     data = odoo_api.consultar_odoo(
-        modulo='ventas')
+        modulo='crm')
     
-    print(data)
+    print(data[0].keys())
     
     # # Imprimir resultados
     # for emp in empleados:

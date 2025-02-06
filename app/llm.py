@@ -5,7 +5,6 @@ import requests as r
 from app.config import RRHH_HEADERS
 from app.data.easytalent import employee, reclutamiento, payroll
 from app.data.odoo.odoo_api import OdooAPI
-#from app.data.easytalent.functions import functions
 from app.data.odoo.functions import functions
 from datetime import datetime
 from app.utils import es_ruta, png_to_base64, validate_params, clear_history
@@ -17,7 +16,9 @@ import pandas as pd
 
 
 client = OpenAI()
-bllm = POpenAI()
+
+MODEL_NAME = "gpt-4o-audio-preview"
+AUDIO_CONFIG = {"voice": "fable", "format": "wav"}
 
 modelos_odoo = {
     "consultar_ventas": "ventas",
@@ -56,7 +57,15 @@ class LargeLanguageModel():
         self.payroll = payroll.Payroll()
 
        
-
+    def extract_function_call(self, response):
+        """Extrae el nombre de la función y los argumentos de la respuesta del modelo."""
+        choice = response.choices[0]
+        function_call = choice.message.function_call
+        if function_call:
+            args = json.loads(function_call.arguments.replace("'", '"'))
+            return function_call.name, args, choice.message
+        return None, None, choice.message
+    
     def proccess_message(self, text, historial=[]):
         """
         Procesa un mensaje de entrada y ejecuta funciones según sea necesario.
@@ -70,9 +79,7 @@ class LargeLanguageModel():
         """
         
         filtered_messages = clear_history(historial)
-        print(text, end="\n\n")
-        
-        function_name, args, message = self.process_functions(text, filtered_messages)
+        function_name, args, message, _ = self.process_functions(text, filtered_messages)
         print( function_name, args, message)
         
         if function_name is not None:
@@ -277,32 +284,24 @@ class LargeLanguageModel():
         
         # Se realiza una llamada a la API de OpenAI (debe reemplazarse 'client' con la instancia correcta de OpenAI)
         response = client.chat.completions.create(
-            model=self.model,
+            model=MODEL_NAME,
+            modalities=["text", "audio"],
+            audio=AUDIO_CONFIG,
             messages=[
-                {"role": "system", "content": self.rol},
                 {"role": "user", "content": text},
                 *historial,
             ],
             functions=functions,
-            function_call="auto"
+            function_call="auto",
+            
         )
+        
 
-        choice = response.choices[0]
-        function_call = choice.message.function_call
-        message = choice.message
-
-
-        if function_call is not None:
-            function_name = function_call.name
-            args = json.loads(function_call.arguments.replace("'", '"')) 
-            print(function_name, args, message)
-            return function_name, args, message
-        else:
-            return None, None, message
+        function_name, args, message = self.extract_function_call(response)
+        return function_name, args, message, response.choices[0]
     
     def process_call(self, question, data, name=None, description=None, key_words = [], output_type=None):
-        """
-        Procesa la pregunta del usuario usando pandasai.
+        """ Procesa la pregunta del usuario usando pandasai.
         Args:
             :param question: texto a consultar por el usuario a la IA.
             :type:str
@@ -316,23 +315,35 @@ class LargeLanguageModel():
             :param desciption (opcional): descripcion que se le asignara al dataframe generado desde data. 
             :type: str
         
+            :param output_type (opcional): tipo de la respuesta number, dataframe, plot, string. 
+            :type: str
+        
         return:
             response: retorna respuesta del modelo str    
         
         """
         df = pd.DataFrame(data)
-        print(df)
-        self.sdf = SmartDataframe(df, config={"llm": bllm, "open_charts":False}, name=name, description=description)
-        df.to_markdown
+        LLM = POpenAI()
+        self.sdf = SmartDataframe(df, config={"llm": LLM, "open_charts":False}, name=name, description=description)
+        
         response = None
         if output_type:
             response = self.sdf.chat(question, output_type=output_type)
         else:
             response = self.sdf.chat(question)
-            
 
-        if isinstance(response, pd.DataFrame): 
+        if isinstance(response, pd.DataFrame):
+            if len(response) > 0: 
                 return response
+            else:
+                return "No se encontró información relevante para tu consulta."
+            
+            
+            
+        if isinstance(response, str): 
+            choice = self.get_response(f"mejora este texto a lenguaje natural, solo retorna la respuesta mejorada: {response}")
+            if choice.message.audio.transcript:
+                return choice
 
         # Lista de tipos de datos enteros en NumPy
         tipos_enteros = (int, np.int8, np.int16, np.int32, np.int64)
@@ -351,12 +362,7 @@ class LargeLanguageModel():
         
 
         return response
-
-        
-            
-            
-             
-        
+      
     def get_response(self, question, historial=[]):
         """ Procesa la pregunta del usuario sin analizar datos solo el historial"""
         
@@ -369,9 +375,11 @@ class LargeLanguageModel():
             
         ]
         
-        response = client.chat.completions.create(
-            model=self.model,
-            messages=messages
+        completion = client.chat.completions.create(
+            model=MODEL_NAME,
+            modalities=["text", "audio"],
+            audio={"voice": "alloy", "format": "wav"},
+            messages=messages,
         )
-
-        return response.choices[0].message.content
+        #print("CHOICE ", completion.choices[0])
+        return completion.choices[0]
