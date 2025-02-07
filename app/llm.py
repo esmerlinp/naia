@@ -15,7 +15,7 @@ import pandas as pd
 
 
 
-client = OpenAI()
+
 
 MODEL_NAME = "gpt-4o-audio-preview"
 AUDIO_CONFIG = {"voice": "fable", "format": "wav"}
@@ -45,7 +45,7 @@ class LargeLanguageModel():
     Esta clase se utiliza para validar parámetros, procesar respuestas del modelo y manejar interacciones.
     """
 
-    def __init__(self):
+    def __init__(self, api_key):
         """
         Inicializa una instancia de la clase LLM..
         """
@@ -55,6 +55,7 @@ class LargeLanguageModel():
         self.odoo_api = OdooAPI()
         self.reclutamiento = reclutamiento.Reclutamiento()
         self.payroll = payroll.Payroll()
+        self.client = OpenAI(api_key=api_key)
 
        
     def extract_function_call(self, response):
@@ -283,7 +284,7 @@ class LargeLanguageModel():
         
         
         # Se realiza una llamada a la API de OpenAI (debe reemplazarse 'client' con la instancia correcta de OpenAI)
-        response = client.chat.completions.create(
+        response = self.client.chat.completions.create(
             model=MODEL_NAME,
             modalities=["text", "audio"],
             audio=AUDIO_CONFIG,
@@ -375,7 +376,7 @@ class LargeLanguageModel():
             
         ]
         
-        completion = client.chat.completions.create(
+        completion = self.client.chat.completions.create(
             model=MODEL_NAME,
             modalities=["text", "audio"],
             audio={"voice": "alloy", "format": "wav"},

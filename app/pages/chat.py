@@ -19,7 +19,21 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
    
-
+modelos_odoo = {
+            "ventas": "sale.order",
+            "compras": "purchase.order",
+            "contabilidad": "account.move",
+            "gastos": "hr.expense",
+            "facturacion": "account.move",
+            "contactos": "res.partner",
+            "proyectos": "project.project",
+            "tareas": "project.task",
+            "inventario": "stock.picking",
+            "produccion": "mrp.production",
+            "empleados": "hr.employee",
+            "nomina": "hr.payslip",
+            "crm": "crm.lead"
+        }
 
 if not st.session_state.is_auth:
 
@@ -27,7 +41,7 @@ if not st.session_state.is_auth:
     st.markdown(st.session_state.errorMessage, unsafe_allow_html=True)
     
 else:       
-    llm = LargeLanguageModel()
+    
     db = Database()
 
     # Cargar la última sesión del usuario o crear una nueva si no existe
@@ -37,6 +51,11 @@ else:
 
     # Obtener la conversación actual de la sesión
     msgs = db.get_conversation(st.session_state.CURRENT_SESION)
+    
+    with st.sidebar:
+        apikey = st.text_input(label="API KEY", type="password",placeholder="Enter your api key")
+        for module in modelos_odoo.keys():
+            st.checkbox(module, value=True, disabled=True)
 
 
 ##################################################################################
@@ -51,6 +70,7 @@ else:
             if len(st.session_state.messages) <= 0:
                 db.delete_sesion(st.session_state.CURRENT_SESION)
             else:    
+                #llm = LargeLanguageModel(api_key=apikey)
                 #sesion_title = llm.get_response("genera un titulo relacionado al historial de esta conversacion, solo muestrame el titulo generado", st.session_state.messages)
                 sesion_title = st.session_state.messages[0]
                 db.update_sesion_description(st.session_state.CURRENT_SESION, sesion_title)
@@ -161,8 +181,8 @@ else:
             else: 
                 st.markdown(content)
             
-            if i == (len(st.session_state.messages) -1) and role == 'user':
-
+            if i == (len(st.session_state.messages) -1) and role == 'user' and apikey:
+                llm = LargeLanguageModel(api_key=apikey)
                 choices = llm.proccess_message(content, st.session_state.messages)
                 if isinstance(choices, openai.types.chat.chat_completion.Choice):
                    
@@ -209,6 +229,12 @@ else:
        
     prompt = st.chat_input(f"{st.session_state.FullUserName.split()[0]}, escribe tu pregunta o solicitud aquí...", max_chars=12000)
     if prompt:
+        
+        if not apikey:
+            st.info("Please add your OpenAI API key to continue.")
+            st.stop()
+        
+        
         init_t = time.time()
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
@@ -224,7 +250,7 @@ else:
             
             with placeholder:
                 with st.spinner("Thinking ..."):
-                            
+                    llm = LargeLanguageModel(api_key=apikey)
                     choices = llm.proccess_message(prompt, st.session_state.messages)
                     
                 if isinstance(choices, openai.types.chat.chat_completion.Choice):
